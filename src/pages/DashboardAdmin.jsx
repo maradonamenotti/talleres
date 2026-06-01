@@ -242,9 +242,16 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
                 {usersList.map((u) => (
                   <tr key={u.id} style={{ background: u.banned ? 'rgba(239, 68, 68, 0.03)' : 'inherit' }}>
                     <td style={{ fontWeight: '500', color: u.banned ? 'var(--color-error)' : 'var(--color-text-main)' }}>
-                      {u.full_name || 'Sin Nombre'}
+                      <div>{u.full_name || 'Sin Nombre'}</div>
+                      {(u.dni_passport || u.career) && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 'normal', marginTop: '0.25rem' }}>
+                          {u.dni_passport && `DNI: ${u.dni_passport}`}
+                          {u.dni_passport && u.career && ' | '}
+                          {u.career && `Carrera: ${u.career}`}
+                        </div>
+                      )}
                       {u.banned && (
-                        <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--color-error)', fontWeight: 'bold' }}>
+                        <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--color-error)', fontWeight: 'bold', marginTop: '0.25rem' }}>
                           ⚠️ ACCESO RESTRINGIDO
                         </span>
                       )}

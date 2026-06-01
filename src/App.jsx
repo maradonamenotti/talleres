@@ -20,6 +20,8 @@ export default function App() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('Maradona2026')
   const [fullName, setFullName] = useState('')
+  const [dniPassport, setDniPassport] = useState('')
+  const [career, setCareer] = useState('')
   const [authError, setAuthError] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
 
@@ -71,7 +73,9 @@ export default function App() {
             id: session.user.id,
             email: session.user.email,
             full_name: session.user.user_metadata?.full_name || 'Usuario',
-            role: isSystemAdmin ? 'admin' : 'student'
+            role: isSystemAdmin ? 'admin' : 'student',
+            dni_passport: session.user.user_metadata?.dni_passport || null,
+            career: session.user.user_metadata?.career || null
           }
 
           const { data: inserted, error: insertError } = await supabase
@@ -116,7 +120,9 @@ export default function App() {
           password,
           options: {
             data: {
-              full_name: fullName
+              full_name: fullName,
+              dni_passport: dniPassport,
+              career: career
             }
           }
         })
@@ -190,17 +196,56 @@ export default function App() {
             )}
 
             {isSignUp && (
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Nombre Completo</label>
-                <input
-                  type="text"
-                  required
-                  className="form-input"
-                  placeholder="Juan Pérez"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                />
-              </div>
+              <>
+                <div style={{ 
+                  color: 'var(--color-accent)', 
+                  fontSize: '0.8rem', 
+                  textAlign: 'center', 
+                  padding: '0.5rem 0.75rem', 
+                  background: 'rgba(59, 130, 246, 0.1)', 
+                  borderRadius: '6px',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  lineHeight: '1.4'
+                }}>
+                  📢 <strong>Favor de ingresar los mismos datos que utiliza en Quintttos</strong>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Nombre Completo</label>
+                  <input
+                    type="text"
+                    required
+                    className="form-input"
+                    placeholder="Juan Pérez"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">DNI o Pasaporte</label>
+                  <input
+                    type="text"
+                    required
+                    className="form-input"
+                    placeholder="Ej: 12345678"
+                    value={dniPassport}
+                    onChange={(e) => setDniPassport(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Carrera que Cursa</label>
+                  <input
+                    type="text"
+                    required
+                    className="form-input"
+                    placeholder="Ej: Director Técnico de Fútbol"
+                    value={career}
+                    onChange={(e) => setCareer(e.target.value)}
+                  />
+                </div>
+              </>
             )}
 
             <div className="form-group" style={{ marginBottom: 0 }}>

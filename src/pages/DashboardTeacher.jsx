@@ -48,7 +48,9 @@ export default function DashboardTeacher({ user, profile }) {
           *,
           student:profiles!tactical_cases_student_id_fkey (
             full_name,
-            email
+            email,
+            dni_passport,
+            career
           )
         `)
         .order('updated_at', { ascending: false })
@@ -311,6 +313,18 @@ export default function DashboardTeacher({ user, profile }) {
                     >
                       💬 Enviar WhatsApp
                     </a>
+                  </>
+                )}
+                {selectedCase.student?.dni_passport && (
+                  <>
+                    <span>|</span>
+                    <span>DNI/Pasaporte: {selectedCase.student.dni_passport}</span>
+                  </>
+                )}
+                {selectedCase.student?.career && (
+                  <>
+                    <span>|</span>
+                    <span>Carrera: {selectedCase.student.career}</span>
                   </>
                 )}
               </p>

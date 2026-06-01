@@ -614,7 +614,16 @@ export default function DashboardStats({ onBackToDashboard }) {
               <tbody>
                 {filteredExpositorsList.map(item => (
                   <tr key={item.student.id}>
-                    <td style={{ fontWeight: '600' }}>{item.student.full_name || 'Desconocido'}</td>
+                    <td style={{ fontWeight: '600' }}>
+                      {item.student.full_name || 'Desconocido'}
+                      {(item.student.dni_passport || item.student.career) && (
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 'normal', marginTop: '0.25rem' }}>
+                          {item.student.dni_passport && `DNI: ${item.student.dni_passport}`}
+                          {item.student.dni_passport && item.student.career && ' | '}
+                          {item.student.career && `Carrera: ${item.student.career}`}
+                        </span>
+                      )}
+                    </td>
                     <td>{item.student.email}</td>
                     <td>
                       <span className={`badge badge-${item.case.status}`}>
@@ -667,7 +676,16 @@ export default function DashboardStats({ onBackToDashboard }) {
                   const hasRegs = item.registeredRooms.length > 0
                   return (
                     <tr key={item.student.id}>
-                      <td style={{ fontWeight: '600' }}>{item.student.full_name || 'Desconocido'}</td>
+                      <td style={{ fontWeight: '600' }}>
+                        {item.student.full_name || 'Desconocido'}
+                        {(item.student.dni_passport || item.student.career) && (
+                          <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 'normal', marginTop: '0.25rem' }}>
+                            {item.student.dni_passport && `DNI: ${item.student.dni_passport}`}
+                            {item.student.dni_passport && item.student.career && ' | '}
+                            {item.student.career && `Carrera: ${item.student.career}`}
+                          </span>
+                        )}
+                      </td>
                       <td>{item.student.email}</td>
                       <td style={{ color: 'var(--color-text-muted)' }}>
                         {item.student.created_at ? new Date(item.student.created_at).toLocaleDateString() : 'N/A'}
@@ -761,10 +779,21 @@ export default function DashboardStats({ onBackToDashboard }) {
                    selectedCase.status === 'observed' ? 'Observado' : 
                    'Aprobado'}
                 </span>
-                <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-title)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  Ficha Técnica de Expositor: {
+                <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-title)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
+                  <span>Ficha Técnica de Expositor: {
                     profiles.find(p => p.id === selectedCase.student_id)?.full_name || 'Alumno'
-                  }
+                  }</span>
+                  {(() => {
+                    const prof = profiles.find(p => p.id === selectedCase.student_id);
+                    if (!prof || (!prof.dni_passport && !prof.career)) return null;
+                    return (
+                      <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', fontWeight: 'normal' }}>
+                        {prof.dni_passport && `DNI: ${prof.dni_passport}`}
+                        {prof.dni_passport && prof.career && ' | '}
+                        {prof.career && `Carrera: ${prof.career}`}
+                      </span>
+                    );
+                  })()}
                 </h3>
               </div>
               <button 

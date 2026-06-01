@@ -171,4 +171,12 @@ implementados hasta la fecha.
   * Campo para el número de WhatsApp del alumno en la sección "0. Datos Generales" de la Ficha Técnica (Tab 2), con almacenamiento en base de datos (`student_whatsapp`).
   * Visualización en el panel de revisión del docente con un enlace de acceso directo de color verde (`💬 Enviar WhatsApp`) para contactarlo mediante un clic.
   * Visualización en el modal de estadísticas avanzadas del administrador con enlace directo a chat.
+- Registro con DNI/Pasaporte, Carrera y Aclaración de Quintttos:
+  * Campos obligatorios "DNI o Pasaporte" y "Carrera que cursa" agregados en el formulario de registro de Alumno.
+  * Aclaración informativa destacada: "📢 Favor de ingresar los mismos datos que utiliza en Quintttos".
+  * Sincronización automática de estos datos a través de los metadatos de Supabase Auth y la columna correspondiente en `public.profiles`.
+  * Visualización integrada en el panel de Administración (bajo el nombre en la lista de usuarios), panel de Docentes (dentro de la revisión detallada del caso), y panel de Estadísticas (dentro de las tablas de Expositores/Oyentes y en el visor modal detallado del caso).
+- Control de Versiones e Integración (GitHub):
+  * Creación y configuración del archivo `.gitignore` para excluir dependencias locales y archivos del compilador.
+  * Inicialización de Git local y subida exitosa del código completo del taller a la rama principal (`main`) en el repositorio oficial de GitHub: https://github.com/maradonamenotti/talleres.git.
 ===============================================================================
