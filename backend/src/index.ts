@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import * as dotenv from "dotenv";
 import { AppDataSource } from "./data-source";
+import ssoRoutes from './routes/sso';
 
 dotenv.config();
 
@@ -13,18 +14,13 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
+app.use('/api/auth', ssoRoutes);
+
 app.get("/", (req, res) => {
   res.send("API de La Oficina del Entrenador en línea");
 });
 
-// Initialize database and start server
-AppDataSource.initialize()
-  .then(() => {
-    console.log("Data Source has been initialized!");
-    app.listen(port, () => {
-      console.log(`Server is running on port ${port}`);
-    });
-  })
-  .catch((err) => {
-    console.error("Error during Data Source initialization:", err);
-  });
+// Initialize and start server directly
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});

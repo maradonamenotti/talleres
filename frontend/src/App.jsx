@@ -15,6 +15,10 @@ export default function App() {
   const [studentSubTab, setStudentSubTab] = useState('info')
   const [studentWantsToExpose, setStudentWantsToExpose] = useState(false)
   
+  // SSO Moodle State
+  const [ssoLoading, setSsoLoading] = useState(false)
+  const [ssoError, setSsoError] = useState('')
+
   // Auth Form State
   const [isSignUp, setIsSignUp] = useState(false)
   const [email, setEmail] = useState('')
@@ -43,6 +47,97 @@ export default function App() {
     })
 
     return () => subscription.unsubscribe()
+  }, [])
+
+  // Capturar e iniciar sesión vía SSO desde Moodle
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const username = params.get('username')
+    const emailParam = params.get('email')
+    const firstname = params.get('firstname')
+    const lastname = params.get('lastname')
+    const courseId = params.get('course_id')
+    const hash = params.get('hash')
+
+    if (username && emailParam && firstname && lastname && courseId && hash) {
+      const runSSO = async () => {
+        setSsoLoading(true)
+        setSsoError('')
+        try {
+          const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+          const response = await fetch(`${apiBaseUrl}/api/auth/sso`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username,
+              email: emailParam,
+              firstname,
+              lastname,
+              course_id: courseId,
+              hash
+            })
+          })
+
+          const result = await response.json()
+          if (!response.ok) {
+            throw new Error(result.error || 'Error al validar la sesión única de Moodle.')
+          }
+
+          // Intentar iniciar sesión en Supabase
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: result.email,
+            password: result.password
+          })
+
+          if (signInError) {
+            // Si falla el login porque el usuario no existe en Supabase Auth, lo registramos al vuelo
+            if (signInError.message.includes('Invalid login credentials') || signInError.message.includes('invalid_credentials')) {
+              const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                email: result.email,
+                password: result.password,
+                options: {
+                  data: {
+                    full_name: `${firstname} ${lastname}`,
+                    dni_passport: username,
+                    career: 'Alumno de Moodle'
+                  }
+                }
+              })
+
+              if (signUpError) throw signUpError;
+              
+              // El signUp auto-loguea o requiere iniciar sesión
+              if (signUpData.session) {
+                setSession(signUpData.session)
+              } else {
+                // Volvemos a intentar login tras registro
+                const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
+                  email: result.email,
+                  password: result.password
+                })
+                if (retryError) throw retryError;
+                setSession(retryData.session)
+              }
+            } else {
+              throw signInError
+            }
+          } else {
+            setSession(signInData.session)
+          }
+
+          // Limpiar parámetros de la URL para una navegación limpia
+          window.history.replaceState({}, document.title, window.location.pathname)
+
+        } catch (err) {
+          console.error('Error en SSO de Moodle:', err)
+          setSsoError(err.message || 'Error desconocido al validar acceso.')
+        } finally {
+          setSsoLoading(false)
+        }
+      }
+
+      runSSO()
+    }
   }, [])
 
   // Cargar perfil del usuario
@@ -172,6 +267,58 @@ export default function App() {
     } finally {
       setPasswordChangeLoading(false)
     }
+  }
+
+  if (ssoLoading) {
+    return (
+      <div className="auth-page" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '1.5rem' }}>
+        <div style={{ textAlign: 'center' }}>
+          <span className="brand-logo" style={{ fontSize: '3rem', display: 'block', animation: 'pulse 1.5s infinite' }}>⚽</span>
+          <h2 style={{ fontFamily: 'var(--font-title)', fontSize: '1.5rem', marginTop: '1rem' }}>Sincronizando acceso con Moodle...</h2>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', marginTop: '0.5rem' }}>Validando tu matrícula y firma de seguridad</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (ssoError) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card" style={{ maxWidth: '450px', borderLeft: '4px solid var(--color-error)' }}>
+          <div className="brand-header">
+            <span className="brand-logo">⚠️</span>
+            <h1 className="brand-name" style={{ color: 'var(--color-error)' }}>Acceso Denegado</h1>
+            <p className="brand-tagline">Validación de Moodle Fallida</p>
+          </div>
+          <div style={{ padding: '1rem 0', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <p style={{ fontSize: '0.9rem', lineHeight: '1.5', color: 'var(--color-text-main)' }}>
+              {ssoError}
+            </p>
+            <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: '1.4' }}>
+              Por favor, asegúrate de acceder al taller ingresando mediante los enlaces oficiales provistos dentro de tu curso de Moodle.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+              <a 
+                href="https://wa.me/5491178544032" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="btn btn-secondary" 
+                style={{ flexGrow: 1, justifyContent: 'center', color: '#34d399', background: 'rgba(16, 185, 129, 0.05)', borderColor: 'rgba(16, 185, 129, 0.2)' }}
+              >
+                💬 Soporte WhatsApp
+              </a>
+              <button 
+                onClick={() => setSsoError('')} 
+                className="btn btn-secondary"
+                style={{ flexGrow: 1, justifyContent: 'center' }}
+              >
+                Volver al Login
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (!session) {
