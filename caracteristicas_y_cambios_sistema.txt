@@ -1,0 +1,174 @@
+===============================================================================
+      LA OFICINA DEL ENTRENADOR - DOCUMENTACIÓN DE CAMBIOS Y CARACTERÍSTICAS
+===============================================================================
+Plataforma: Escuela Maradona Menotti
+Tecnologías: Vite + React, Supabase (PostgreSQL, Auth, RLS, RPCs), Lucide Icons
+Diseño: Locker Room Style (Pizarra deportiva oscura, Glassmorphism, Responsive)
+===============================================================================
+
+Este documento resume de forma detallada todas las características funcionales, 
+la arquitectura del sistema, el modelo de datos, la seguridad y los cambios 
+implementados hasta la fecha.
+
+-------------------------------------------------------------------------------
+1. 👥 ROLES Y ACCESOS DEL SISTEMA
+-------------------------------------------------------------------------------
+- ALUMNO (student):
+  * Acceso al video introductorio y dinámica general del taller.
+  * Registro como OYENTE en salas de Google Meet sin necesidad de ficha técnica.
+  * Postulación como EXPOSITOR mediante un interruptor interactivo.
+  * Acceso a la Ficha Táctica (Tab 2) si está en modo Expositor para completar y
+    enviar su caso a revisión.
+  * Visualización del Meet asignado y feedback del profesor una vez aprobado.
+  * Cambio de contraseña directo desde la barra lateral.
+
+- DOCENTE (teacher):
+  * Acceso al listado de casos prácticos enviados por alumnos.
+  * Auditoría y revisión detallada de fichas técnicas (incluye previsualización 
+    de videos y cancha táctica en modo lectura).
+  * Panel de calificación: Aprobado (asigna sala de Meet) / Observado.
+  * Panel de creación y gestión de Salas de Google Meet.
+
+- ADMINISTRADOR (admin):
+  * Acceso a todas las funciones de Alumno y Docente.
+  * Panel de Gestión de Roles para cambiar permisos de usuarios.
+  * Control del estado de correos (Confirmado / Pendiente).
+  * Herramientas de soporte de cuentas: Reenviar confirmación, Confirmar correo
+    manualmente y restablecer contraseñas de alumnos/docentes al valor 
+    por defecto ("Maradona2026").
+  * Acceso al Panel de Estadísticas detalladas de la plataforma.
+
+-------------------------------------------------------------------------------
+2. ⚽ CARACTERÍSTICAS DE COMPONENTES FRONTEND (REACT)
+-------------------------------------------------------------------------------
+- Cancha Táctica Interactiva (TacticalPitch.jsx):
+  * Dibuja un campo de fútbol premium con estilo de pizarra táctica verde.
+  * Permite posicionar las fichas con arrastrar y soltar (Drag & Drop).
+  * Edición rápida del nombre del jugador y número dorsal directamente en la ficha.
+  * Guarda las posiciones en porcentaje (%) relativo para garantizar que el
+    esquema sea 100% responsivo y se visualice idéntico en móviles, tablets y PCs.
+  * Soporta modo lectura (Docente) y modo edición (Alumno).
+
+- Dashboard del Alumno (DashboardStudent.jsx):
+  * Reproductor de Vimeo embebido con las instrucciones del taller.
+  * Listado de "Salas de Meet Disponibles (Oyentes)" en Tab 1 con estados de 
+    inscripción en tiempo real, efectos visuales y enlace directo a Google Meet.
+  * Checkbox para habilitar el modo "Expositor". Si existen datos previos en la
+    ficha, la casilla se bloquea activa para evitar desactivaciones accidentales.
+  * Formulario de Ficha Táctica en Tab 2 que incluye: Contexto del equipo, 
+    lectura de fortalezas/limitaciones, tabla de obligaciones de jugadores, 
+    alineación con la Cancha Táctica, clips de video o partido completo segmentado.
+
+- Dashboard del Docente (DashboardTeacher.jsx):
+  * Filtros de casos por estado (Todos, Entregados, Observados, Aprobados).
+  * Vista de corrección a doble columna: información técnica a la izquierda, 
+    caja de evaluación/feedback a la derecha.
+  * Asignación de salas existentes de Google Meet a casos aprobados.
+  * Formulario para crear salas de Google Meet especificando nombre, enlace, 
+    fecha/hora y temario.
+
+- Dashboard del Administrador (DashboardAdmin.jsx):
+  * Listado completo de perfiles de usuario.
+  * Estado visual del correo del usuario ("Confirmado" en verde, "Pendiente" en naranja).
+  * Acciones de seguridad: Reenviar confirmación, Confirmar manual, Resetear contraseña,
+    Restringir acceso (Bannear) y Eliminar usuario de forma permanente.
+
+- Panel de Estadísticas (DashboardStats.jsx):
+  * Métricas clave (KPIs): Total alumnos registrados, alumnos expositores (con ficha),
+    alumnos oyentes (sin ficha), y alumnos activos únicos hoy / esta semana.
+  * Progreso de Fichas: Barras de porcentaje para Aprobadas, Observadas, Entregadas y Borradores.
+  * Salas de Meet: Ocupación e inscritos por sala en tiempo real.
+  * Historial de Ingresos: Resumen de ingresos por Día, Semana, Mes, y tabla con 
+    los últimos 10 accesos (Nombre, Email, y Fecha/Hora exacta).
+
+- Controlador de Aplicación (App.jsx):
+  * Lógica de inicio de sesión y registro pre-completada por defecto con "Maradona2026".
+  * Sidebar fijo con navegación por pestañas de Presentación, Mi Ficha Técnica 
+    (si está habilitada), Revisión de Casos, Gestión de Roles y Estadísticas.
+  * Lógica de recuperación/auto-creación de perfiles al vuelo.
+
+-------------------------------------------------------------------------------
+3. 🗄️ MODELO DE DATOS Y ESTRUCTURA DE TABLAS (POSTGRESQL)
+-------------------------------------------------------------------------------
+- Tabla public.profiles:
+  * Sincroniza datos públicos del usuario.
+  * Campos: id (UUID, PK), email (text), full_name (text), role (text), 
+    email_confirmed (boolean), banned (boolean), created_at (timestamptz).
+
+- Tabla public.tactical_cases:
+  * Almacena las fichas tácticas de los alumnos y la calificación docente.
+
+- Tabla public.meet_rooms:
+  * Guarda las salas creadas por docentes para oyentes y expositores.
+
+- Tabla public.meet_room_registrations:
+  * Registra las inscripciones de alumnos en modo oyente.
+
+- Tabla public.entrenador_access_logs:
+  * Historial automático de accesos para alimentar el panel de estadísticas.
+  * Campos: id (UUID, PK), user_id (FK auth.users), email (text), fecha (timestamptz).
+
+-------------------------------------------------------------------------------
+4. 🔐 TRIGGERS Y FUNCIONES EN BASE DE DATOS (SEGURIDAD DEFINER)
+-------------------------------------------------------------------------------
+- Trigger de Creación de Perfil (on_auth_user_created):
+  * Sincroniza `auth.users` con `public.profiles` al vuelo tras el registro.
+
+- Trigger de Auto-Confirmación de Correo (tr_auto_confirm_user_email):
+  * Asigna de manera automática `email_confirmed_at = now()`. Permite el login 
+    inmediato de cualquier nuevo alumno registrado.
+
+- Trigger de Sincronización de Confirmación (tr_sync_user_email_confirmation):
+  * Sincroniza la columna `email_confirmed` en la tabla `public.profiles` para
+    que el frontend pueda consultar el estado del correo del alumno.
+
+- Trigger de Sincronización de Restricciones (tr_sync_user_ban_status):
+  * Sincroniza la columna `banned` en la tabla `public.profiles` al bannear 
+    o habilitar el acceso a un usuario.
+
+- Trigger de Registro de Accesos (tr_log_user_access):
+  * Se dispara en `auth.users` al insertarse o actualizarse el campo `last_sign_in_at`.
+  * Inserta de forma automática una fila en `public.entrenador_access_logs`.
+
+- RPCs de Administración Seguros:
+  * `public.admin_confirm_user_email(user_email text)`: Confirma correo en DB.
+  * `public.admin_reset_user_password(user_email text)`: Restablece clave a "Maradona2026".
+  * `public.admin_ban_user(target_user_id uuid, ban_status boolean)`: Restringe / habilita acceso.
+  * `public.admin_delete_user(target_user_id uuid)`: Elimina usuario y datos en cascada.
+
+-------------------------------------------------------------------------------
+5. ⚡ HISTORIAL DE CAMBIOS RECIENTES
+-------------------------------------------------------------------------------
+- Ajuste del menú lateral (Sidebar) e indexación fija de alturas para scroll independiente.
+- Pre-completado de contraseñas por defecto ("Maradona2026") e inline reset form.
+- Alertas oscuras premium en reemplazo de los dialogs `alert()` del navegador.
+- Re-diseño de Tab 1 del alumno para listar salas de Google Meet y suscripción oyente.
+- Implementación de control de visibilidad en Tab 2 (Ficha Táctica) mediante checkbox.
+- Corrección de bugs de inicialización de usuarios y nulos en Supabase Auth.
+- Botones administrativos de confirmación manual, reseteo de clave, bloqueo y eliminación.
+- Creación de tabla e historial de ingresos automatizado (`entrenador_access_logs`).
+- Panel de Estadísticas Administrativas con KPIs, gráficos de barra e historial de accesos.
+- Rediseño y expansión del Panel de Estadísticas con un Explorador Interactivo de 3 Pestañas:
+  * Historial de Accesos Filtrado (Día/Semana/Mes): Agrupa por usuario único, muestra rol, última conexión y frecuencia de inicio de sesión, con buscador por nombre/email.
+  * Alumnos Expositores (Con Ficha): Lista todos los alumnos que tienen caso táctico, con filtros de estado (Borrador, Entregado, Observado, Aprobado), buscador y botón de visualización.
+  * Alumnos Oyentes (Sin Ficha): Lista alumnos que no han creado caso táctico, mostrando en qué salas de Google Meet se inscribieron o si están completamente inactivos, con filtros y buscador.
+  * Visualizador Integrado de Casos: Modal interactivo premium que permite al administrador ver el caso táctico completo de un expositor (datos, obligaciones, problemas, soluciones, videos) y la cancha táctica interactiva en modo lectura.
+- Autoría de Salas (Docente Creador):
+  * Almacenamiento del ID del docente creador (`created_by`) al guardar una sala de Meet en la base de datos.
+  * Visualización del nombre del docente creador en las tarjetas de salas en el dashboard del alumno y del docente.
+- Autolimpieza por Expiración:
+  * Las salas expiran y desaparecen del dashboard (de alumnos, docentes y estadísticas) automáticamente tras transcurrir 2 horas de su inicio programado, manteniendo la interfaz despejada.
+- Confirmación y Reprogramación de Tutorías:
+  * Interfaz del alumno para aceptar el horario o solicitar un cambio explicando su motivo por medio de un comentario.
+  * Ocultación del botón "Unirse al Meet" cuando el horario está rechazado/pendiente de reprogramar.
+  * Alertas visuales para el docente en el panel de revisión que muestran si el alumno aceptó, rechazó o tiene pendiente el horario, incluyendo su comentario de reprogramación.
+  * Reseteo automático de confirmación a "Pendiente" cuando el docente reprograma (cambia fecha/hora o guarda una nueva devolución).
+- Reubicación de Recursos Educativos:
+  * El video del docente explicando un "Ejemplo del Trabajo a Realizar" ha sido movido de la pestaña de Ficha Técnica (Tab 2) al final de la pestaña de Presentación e Información General (Tab 1) para un acceso centralizado de todos los alumnos.
+- Botón de WhatsApp de Soporte:
+  * Incorporación de un botón verde de WhatsApp de Soporte en el menú lateral de navegación (número 5491178544032) para facilitar asistencia técnica y contacto directo de alumnos, docentes y administradores.
+- WhatsApp del Alumno en Ficha Técnica:
+  * Campo para el número de WhatsApp del alumno en la sección "0. Datos Generales" de la Ficha Técnica (Tab 2), con almacenamiento en base de datos (`student_whatsapp`).
+  * Visualización en el panel de revisión del docente con un enlace de acceso directo de color verde (`💬 Enviar WhatsApp`) para contactarlo mediante un clic.
+  * Visualización en el modal de estadísticas avanzadas del administrador con enlace directo a chat.
+===============================================================================
