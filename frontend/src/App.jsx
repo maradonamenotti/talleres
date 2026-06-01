@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { supabase } from './supabaseClient'
 import DashboardStudent from './pages/DashboardStudent'
 import DashboardTeacher from './pages/DashboardTeacher'
@@ -18,6 +18,7 @@ export default function App() {
   // SSO Moodle State
   const [ssoLoading, setSsoLoading] = useState(false)
   const [ssoError, setSsoError] = useState('')
+  const ssoStarted = useRef(false)
 
   // Auth Form State
   const [isSignUp, setIsSignUp] = useState(false)
@@ -60,6 +61,8 @@ export default function App() {
     const hash = params.get('hash')
 
     if (username && emailParam && firstname && lastname && courseId && hash) {
+      if (ssoStarted.current) return
+      ssoStarted.current = true
       const runSSO = async () => {
         setSsoLoading(true)
         setSsoError('')
