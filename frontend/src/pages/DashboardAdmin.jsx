@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { supabase } from '../supabaseClient'
+import api from '../api'
 import { Users, Shield, ArrowLeft, RefreshCw, AlertCircle, Mail, Key, Check, Trash2, Ban, ShieldAlert, Unlock } from 'lucide-react'
 import ModalAlert from '../components/ModalAlert'
 
@@ -29,13 +29,8 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
     setLoading(true)
     setError('')
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
-      
-      if (error) throw error
-      setUsersList(data || [])
+      const res = await api.get('/users')
+      setUsersList(res.data || [])
     } catch (err) {
       console.error(err)
       setError('Error al cargar la lista de usuarios. Verifica tus permisos de Administrador.')
@@ -48,13 +43,8 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
     setLoadingCourses(true)
     setError('')
     try {
-      const { data, error } = await supabase
-        .from('authorized_courses')
-        .select('*')
-        .order('moodle_course_id', { ascending: true })
-      
-      if (error) throw error
-      setCoursesList(data || [])
+      const res = await api.get('/auth/courses')
+      setCoursesList(res.data || [])
     } catch (err) {
       console.error(err)
       setError('Error al cargar la lista de cursos autorizados.')
@@ -71,12 +61,7 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
   const handleRoleChange = async (userId, newRole) => {
     setUpdatingUserId(userId)
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: newRole })
-        .eq('id', userId)
-
-      if (error) throw error
+      await api.put(`/users/${userId}/role`, { role: newRole })
       
       setUsersList(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u))
       
@@ -96,64 +81,24 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
   }
 
   const handleResendConfirmation = async (email) => {
-    try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email
-      })
-      if (error) throw error
-      
-      setAlertTitle('Correo Reenviado')
-      setAlertMessage(`El correo de confirmación de registro ha sido reenviado a ${email} con éxito.`)
-      setAlertType('success')
-      setAlertOpen(true)
-    } catch (err) {
-      console.error(err)
-      setAlertTitle('Error de Envío')
-      setAlertMessage(err.message || 'No se pudo reenviar el correo de confirmación.')
-      setAlertType('error')
-      setAlertOpen(true)
-    }
+    setAlertTitle('Aviso')
+    setAlertMessage('La autenticación ahora se maneja exclusivamente a través de Moodle SSO. El correo no necesita ser confirmado.')
+    setAlertType('info')
+    setAlertOpen(true)
   }
 
   const handleManualConfirm = async (email) => {
-    if (!confirm(`¿Estás seguro de confirmar manualmente el correo ${email} directamente en la base de datos?`)) return
-    try {
-      const { error } = await supabase.rpc('admin_confirm_user_email', { user_email: email })
-      if (error) throw error
-      
-      setAlertTitle('Usuario Confirmado')
-      setAlertMessage(`El correo de ${email} ha sido verificado y confirmado manualmente con éxito en la base de datos.`)
-      setAlertType('success')
-      setAlertOpen(true)
-      
-      setUsersList(prev => prev.map(u => u.email === email ? { ...u, email_confirmed: true } : u))
-    } catch (err) {
-      console.error(err)
-      setAlertTitle('Error de Confirmación')
-      setAlertMessage(err.message || 'No se pudo confirmar el correo del usuario.')
-      setAlertType('error')
-      setAlertOpen(true)
-    }
+    setAlertTitle('Aviso')
+    setAlertMessage('La autenticación ahora se maneja exclusivamente a través de Moodle SSO. Esta acción ya no es necesaria.')
+    setAlertType('info')
+    setAlertOpen(true)
   }
 
   const handleResetPassword = async (email) => {
-    if (!confirm(`¿Estás seguro de restablecer la contraseña de ${email} al valor por defecto "Maradona2026"?`)) return
-    try {
-      const { error } = await supabase.rpc('admin_reset_user_password', { user_email: email })
-      if (error) throw error
-      
-      setAlertTitle('Contraseña Restablecida')
-      setAlertMessage(`La contraseña del usuario ${email} ha sido restablecida con éxito al valor por defecto "Maradona2026".`)
-      setAlertType('success')
-      setAlertOpen(true)
-    } catch (err) {
-      console.error(err)
-      setAlertTitle('Error de Restablecimiento')
-      setAlertMessage(err.message || 'No se pudo restablecer la contraseña del usuario.')
-      setAlertType('error')
-      setAlertOpen(true)
-    }
+    setAlertTitle('Aviso')
+    setAlertMessage('La autenticación ahora se maneja exclusivamente a través de Moodle SSO. La contraseña se gestiona en Moodle.')
+    setAlertType('info')
+    setAlertOpen(true)
   }
 
   const handleBanToggle = async (userId, email, currentBannedStatus) => {
@@ -162,11 +107,7 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
     
     setUpdatingUserId(userId)
     try {
-      const { error } = await supabase.rpc('admin_ban_user', { 
-        target_user_id: userId, 
-        ban_status: !currentBannedStatus 
-      })
-      if (error) throw error
+      await api.put(`/users/${userId}/ban`, { banned: !currentBannedStatus })
       
       setAlertTitle(currentBannedStatus ? 'Acceso Habilitado' : 'Acceso Restringido')
       setAlertMessage(currentBannedStatus 
@@ -193,8 +134,7 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
     
     setUpdatingUserId(userId)
     try {
-      const { error } = await supabase.rpc('admin_delete_user', { target_user_id: userId })
-      if (error) throw error
+      await api.delete(`/users/${userId}`)
       
       setAlertTitle('Usuario Eliminado')
       setAlertMessage(`La cuenta y todos los datos asociados de ${email} han sido eliminados de forma permanente.`)
@@ -218,14 +158,10 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
     if (!newCourseId || !newCourseName) return
     setSavingCourse(true)
     try {
-      const { error } = await supabase
-        .from('authorized_courses')
-        .insert({
-          moodle_course_id: parseInt(newCourseId),
-          course_name: newCourseName
-        })
-      
-      if (error) throw error
+      await api.post('/auth/courses', {
+        moodleCourseId: parseInt(newCourseId),
+        courseName: newCourseName
+      })
       
       setCoursesList(prev => [...prev, { moodle_course_id: parseInt(newCourseId), course_name: newCourseName }])
       setNewCourseId('')
@@ -249,12 +185,7 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
   const handleDeleteCourse = async (courseId) => {
     if (!confirm('¿Estás seguro de desautorizar este curso? Los alumnos de este curso de Moodle ya no podrán ingresar a la plataforma.')) return
     try {
-      const { error } = await supabase
-        .from('authorized_courses')
-        .delete()
-        .eq('moodle_course_id', courseId)
-      
-      if (error) throw error
+      await api.delete(`/auth/courses/${courseId}`)
       
       setCoursesList(prev => prev.filter(c => c.moodle_course_id !== courseId))
       

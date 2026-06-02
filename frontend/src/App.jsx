@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { supabase } from './supabaseClient'
+import api from './api'
 import DashboardStudent from './pages/DashboardStudent'
 import DashboardTeacher from './pages/DashboardTeacher'
 import DashboardAdmin from './pages/DashboardAdmin'
@@ -7,7 +7,7 @@ import DashboardStats from './pages/DashboardStats'
 import { Layout, LogOut, Shield, FileText, Users, Eye, Sparkles, BarChart3 } from 'lucide-react'
 
 export default function App() {
-  const [session, setSession] = useState(null)
+  const [sessionToken, setSessionToken] = useState(localStorage.getItem('token') || null)
   const [profile, setProfile] = useState(null)
   const [loadingProfile, setLoadingProfile] = useState(true)
   const [profileError, setProfileError] = useState('')
@@ -20,7 +20,7 @@ export default function App() {
   const [ssoError, setSsoError] = useState('')
   const ssoStarted = useRef(false)
 
-  // Auth Form State
+  // Auth Form State (Fallback)
   const [isSignUp, setIsSignUp] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('Maradona2026')
@@ -36,19 +36,6 @@ export default function App() {
   const [passwordChangeLoading, setPasswordChangeLoading] = useState(false)
   const [passwordChangeSuccess, setPasswordChangeSuccess] = useState('')
   const [passwordChangeError, setPasswordChangeError] = useState('')
-
-  // Escuchar cambios de sesión
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
 
   // Capturar e iniciar sesión vía SSO desde Moodle
   useEffect(() => {
@@ -67,65 +54,20 @@ export default function App() {
         setSsoLoading(true)
         setSsoError('')
         try {
-          const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-          const response = await fetch(`${apiBaseUrl}/api/auth/sso`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              username,
-              email: emailParam,
-              firstname,
-              lastname,
-              course_id: courseId,
-              hash
-            })
+          const response = await api.post('/auth/sso', {
+            username,
+            email: emailParam,
+            firstname,
+            lastname,
+            course_id: courseId,
+            hash
           })
 
-          const result = await response.json()
-          if (!response.ok) {
-            throw new Error(result.error || 'Error al validar la sesión única de Moodle.')
-          }
-
-          // Intentar iniciar sesión en Supabase
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email: result.email,
-            password: result.password
-          })
-
-          if (signInError) {
-            // Si falla el login porque el usuario no existe en Supabase Auth, lo registramos al vuelo
-            if (signInError.message.includes('Invalid login credentials') || signInError.message.includes('invalid_credentials')) {
-              const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-                email: result.email,
-                password: result.password,
-                options: {
-                  data: {
-                    full_name: `${firstname} ${lastname}`,
-                    dni_passport: username,
-                    career: 'Alumno de Moodle'
-                  }
-                }
-              })
-
-              if (signUpError) throw signUpError;
-              
-              // El signUp auto-loguea o requiere iniciar sesión
-              if (signUpData.session) {
-                setSession(signUpData.session)
-              } else {
-                // Volvemos a intentar login tras registro
-                const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
-                  email: result.email,
-                  password: result.password
-                })
-                if (retryError) throw retryError;
-                setSession(retryData.session)
-              }
-            } else {
-              throw signInError
-            }
-          } else {
-            setSession(signInData.session)
+          const { token, user } = response.data
+          if (token) {
+            localStorage.setItem('token', token)
+            setSessionToken(token)
+            setProfile(user)
           }
 
           // Limpiar parámetros de la URL para una navegación limpia
@@ -133,7 +75,7 @@ export default function App() {
 
         } catch (err) {
           console.error('Error en SSO de Moodle:', err)
-          setSsoError(err.message || 'Error desconocido al validar acceso.')
+          setSsoError(err.response?.data?.error || err.message || 'Error desconocido al validar acceso.')
         } finally {
           setSsoLoading(false)
         }
@@ -145,7 +87,7 @@ export default function App() {
 
   // Cargar perfil del usuario
   useEffect(() => {
-    if (!session?.user) {
+    if (!sessionToken) {
       setProfile(null)
       setProfileError('')
       setLoadingProfile(false)
@@ -156,35 +98,8 @@ export default function App() {
       setLoadingProfile(true)
       setProfileError('')
       try {
-        let { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .maybeSingle()
-
-        if (error) throw error
-
-        if (!data) {
-          // El perfil no existe (usuario antiguo o falla del trigger). Lo creamos.
-          const isSystemAdmin = session.user.email === 'sistemas@maradonamenotti.ar' || session.user.email === 'sistemas@maradonamenotti.com.ar'
-          const newProfile = {
-            id: session.user.id,
-            email: session.user.email,
-            full_name: session.user.user_metadata?.full_name || 'Usuario',
-            role: isSystemAdmin ? 'admin' : 'student',
-            dni_passport: session.user.user_metadata?.dni_passport || null,
-            career: session.user.user_metadata?.career || null
-          }
-
-          const { data: inserted, error: insertError } = await supabase
-            .from('profiles')
-            .insert(newProfile)
-            .select()
-            .single()
-
-          if (insertError) throw insertError
-          data = inserted
-        }
+        const response = await api.get('/users/profile')
+        const data = response.data
 
         setProfile(data)
         // Redirigir a su pestaña principal según su rol
@@ -197,79 +112,40 @@ export default function App() {
         }
       } catch (err) {
         console.error('Error loading profile:', err)
-        setProfileError(err.message || JSON.stringify(err))
+        setProfileError(err.response?.data?.error || err.message)
+        if (err.response?.status === 401 || err.response?.status === 403) {
+          handleLogout()
+        }
       } finally {
         setLoadingProfile(false)
       }
     }
 
-    loadProfile()
-  }, [session])
+    // Si ya lo tenemos (del SSO login), no lo cargamos dos veces
+    if (!profile) {
+      loadProfile()
+    } else {
+      setLoadingProfile(false)
+    }
+  }, [sessionToken])
 
   const handleAuth = async (e) => {
     e.preventDefault()
-    setAuthError('')
-    setAuthLoading(true)
-
-    try {
-      if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: fullName,
-              dni_passport: dniPassport,
-              career: career
-            }
-          }
-        })
-        if (error) throw error
-        alert('Registro exitoso. Revisa tu casilla si se requiere confirmación.')
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        })
-        if (error) throw error
-      }
-    } catch (err) {
-      console.error(err)
-      setAuthError(err.message || 'Error en el proceso de autenticación.')
-    } finally {
-      setAuthLoading(false)
-    }
+    setAuthError('Para esta versión, por favor ingresa mediante el campus de Moodle.')
+    // TODO: Implementar POST /api/auth/login si se requiere login manual sin Moodle
   }
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    setSessionToken(null)
+    setProfile(null)
+    setActiveTab('student')
   }
 
   const handleUpdatePassword = async (e) => {
     e.preventDefault()
-    setPasswordChangeError('')
-    setPasswordChangeSuccess('')
-    if (newPassword.length < 6) {
-      setPasswordChangeError('La contraseña debe tener al menos 6 caracteres.')
-      return
-    }
-    setPasswordChangeLoading(true)
-
-    try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword })
-      if (error) throw error
-      setPasswordChangeSuccess('Contraseña cambiada con éxito.')
-      setNewPassword('')
-      setTimeout(() => {
-        setShowPasswordChange(false)
-        setPasswordChangeSuccess('')
-      }, 2500)
-    } catch (err) {
-      console.error(err)
-      setPasswordChangeError(err.message || 'Error al cambiar contraseña.')
-    } finally {
-      setPasswordChangeLoading(false)
-    }
+    setPasswordChangeError('Cambio de clave no disponible temporalmente.')
+    // TODO: Implementar PATCH /api/users/password en el backend
   }
 
   if (ssoLoading) {
@@ -324,7 +200,7 @@ export default function App() {
     )
   }
 
-  if (!session) {
+  if (!sessionToken) {
     return (
       <div className="auth-page">
         <div className="auth-card">
@@ -528,7 +404,7 @@ export default function App() {
               {profile?.full_name || 'Usuario'}
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {profile?.email || session?.user?.email}
+              {profile?.email}
             </div>
             {profileError && (
               <div style={{ fontSize: '0.7rem', color: 'var(--color-error)', marginTop: '0.25rem', wordBreak: 'break-all', background: 'rgba(239, 68, 68, 0.1)', padding: '4px', borderRadius: '4px' }}>
@@ -604,7 +480,7 @@ export default function App() {
       <main style={{ flexGrow: 1, backgroundColor: 'var(--bg-main)', height: '100vh', overflowY: 'auto' }}>
         {activeTab === 'student' && (
           <DashboardStudent 
-            user={session.user} 
+            user={profile} 
             profile={profile} 
             activeSubTab={studentSubTab} 
             setActiveSubTab={setStudentSubTab} 
@@ -612,8 +488,8 @@ export default function App() {
             setWantsToExpose={setStudentWantsToExpose} 
           />
         )}
-        {activeTab === 'teacher' && <DashboardTeacher user={session.user} profile={profile} />}
-        {activeTab === 'admin' && <DashboardAdmin user={session.user} onBackToDashboard={() => setActiveTab('student')} />}
+        {activeTab === 'teacher' && <DashboardTeacher user={profile} profile={profile} />}
+        {activeTab === 'admin' && <DashboardAdmin user={profile} onBackToDashboard={() => setActiveTab('student')} />}
         {activeTab === 'stats' && <DashboardStats onBackToDashboard={() => setActiveTab('student')} />}
       </main>
     </div>

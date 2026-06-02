@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { supabase } from '../supabaseClient'
+import api from '../api'
 import TacticalPitch from '../components/TacticalPitch'
 import { 
   BarChart3, Users, FileText, Calendar, Clock, RefreshCw, 
@@ -30,45 +30,26 @@ export default function DashboardStats({ onBackToDashboard }) {
     setLoading(true)
     try {
       // 1. Cargar perfiles
-      const { data: profs, error: profsErr } = await supabase
-        .from('profiles')
-        .select('*')
-      if (profsErr) throw profsErr
-      setProfiles(profs || [])
-      setStudents((profs || []).filter(p => p.role === 'student'))
+      const profsRes = await api.get('/users')
+      const profs = profsRes.data || []
+      setProfiles(profs)
+      setStudents(profs.filter(p => p.role === 'student'))
 
       // 2. Cargar fichas tácticas
-      const { data: casesData, error: casesErr } = await supabase
-        .from('tactical_cases')
-        .select('*')
-      if (casesErr) throw casesErr
-      setCases(casesData || [])
+      const casesRes = await api.get('/tactical-cases')
+      setCases(casesRes.data || [])
 
-      // 3. Cargar salas de Meet
-      const { data: roomsData, error: roomsErr } = await supabase
-        .from('meet_rooms')
-        .select('*, creator:profiles!meet_rooms_created_by_fkey(full_name)')
-      if (roomsErr) throw roomsErr
-      
-      // Filtrar salas que ya hayan pasado de su fecha/hora por más de 2 horas
-      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000)
-      const activeRooms = (roomsData || []).filter(room => new Date(room.meet_time) >= twoHoursAgo)
-      setRooms(activeRooms)
+      // 3. Cargar salas de Meet activas
+      const roomsRes = await api.get('/meet-rooms')
+      setRooms(roomsRes.data || [])
 
       // 4. Cargar registros a salas
-      const { data: regsData, error: regsErr } = await supabase
-        .from('meet_room_registrations')
-        .select('*')
-      if (regsErr) throw regsErr
-      setRegistrations(regsData || [])
+      const regsRes = await api.get('/meet-rooms/registrations')
+      setRegistrations(regsRes.data || [])
 
       // 5. Cargar logs de acceso
-      const { data: logs, error: logsErr } = await supabase
-        .from('entrenador_access_logs')
-        .select('*')
-        .order('fecha', { ascending: false })
-      if (logsErr) throw logsErr
-      setAccessLogs(logs || [])
+      const logsRes = await api.get('/stats/access-logs')
+      setAccessLogs(logsRes.data || [])
 
     } catch (err) {
       console.error('Error loading stats:', err)

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { supabase } from '../supabaseClient'
+import api from '../api'
 import TacticalPitch from '../components/TacticalPitch'
 import ModalAlert from '../components/ModalAlert'
 import { FileText, Save, Send, Eye, Award, ExternalLink, RefreshCw, Plus, Trash2, Video, Calendar } from 'lucide-react'
@@ -71,13 +71,8 @@ export default function DashboardStudent({ user, profile, activeSubTab, setActiv
     setLoading(true)
     try {
       // 1. Cargar caso del alumno
-      const { data: caseDataObj, error: caseError } = await supabase
-        .from('tactical_cases')
-        .select('*')
-        .eq('student_id', user.id)
-        .maybeSingle()
-
-      if (caseError) throw caseError
+      const caseRes = await api.get('/tactical-cases/my-case')
+      const caseDataObj = caseRes.data
 
       if (caseDataObj) {
         setCaseData(caseDataObj)
@@ -106,27 +101,13 @@ export default function DashboardStudent({ user, profile, activeSubTab, setActiv
         setCaseData(null)
       }
 
-      // 2. Cargar salas de Meet creadas por docentes
-      const { data: roomsData, error: roomsError } = await supabase
-        .from('meet_rooms')
-        .select('*, creator:profiles!meet_rooms_created_by_fkey(full_name)')
-        .order('meet_time', { ascending: true })
-
-      if (roomsError) throw roomsError
-
-      // Filtrar salas que ya hayan pasado de su fecha/hora por más de 2 horas
-      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000)
-      const activeRooms = (roomsData || []).filter(room => new Date(room.meet_time) >= twoHoursAgo)
-      setRooms(activeRooms)
+      // 2. Cargar salas de Meet activas
+      const roomsRes = await api.get('/meet-rooms')
+      setRooms(roomsRes.data || [])
 
       // 3. Cargar inscripciones de este alumno
-      const { data: regsData, error: regsError } = await supabase
-        .from('meet_room_registrations')
-        .select('*')
-        .eq('student_id', user.id)
-
-      if (regsError) throw regsError
-      setRegistrations(regsData || [])
+      const regsRes = await api.get('/meet-rooms/registrations')
+      setRegistrations(regsRes.data || [])
 
     } catch (err) {
       console.error('Error fetching student data:', err)
@@ -139,17 +120,11 @@ export default function DashboardStudent({ user, profile, activeSubTab, setActiv
     if (!caseData) return
     setSubmittingScheduleResponse(true)
     try {
-      const { data, error } = await supabase
-        .from('tactical_cases')
-        .update({
-          meet_schedule_status: status,
-          student_schedule_comment: comment
-        })
-        .eq('id', caseData.id)
-        .select()
-        .single()
-
-      if (error) throw error
+      const response = await api.post('/tactical-cases', {
+        meet_schedule_status: status,
+        student_schedule_comment: comment
+      })
+      const data = response.data
 
       setCaseData(data)
       setShowRescheduleForm(false)
@@ -176,14 +151,7 @@ export default function DashboardStudent({ user, profile, activeSubTab, setActiv
   const handleRegisterRoom = async (roomId) => {
     setRegisteringRoomId(roomId)
     try {
-      const { error } = await supabase
-        .from('meet_room_registrations')
-        .insert({
-          room_id: roomId,
-          student_id: user.id
-        })
-
-      if (error) throw error
+      await api.post(`/meet-rooms/${roomId}/register`)
 
       setAlertTitle('Inscripción Exitosa')
       setAlertMessage('Te has inscripto como oyente a la sala de Meet. Podrás unirte en el horario programado.')
@@ -191,12 +159,8 @@ export default function DashboardStudent({ user, profile, activeSubTab, setActiv
       setAlertOpen(true)
       
       // Actualizar inscripciones
-      const { data: regsData, error: regsError } = await supabase
-        .from('meet_room_registrations')
-        .select('*')
-        .eq('student_id', user.id)
-      if (regsError) throw regsError
-      setRegistrations(regsData || [])
+      const regsRes = await api.get('/meet-rooms/registrations')
+      setRegistrations(regsRes.data || [])
 
     } catch (err) {
       console.error('Error registering for room:', err)
@@ -213,13 +177,7 @@ export default function DashboardStudent({ user, profile, activeSubTab, setActiv
     if (!confirm('¿Estás seguro de que quieres cancelar tu inscripción a esta sala?')) return
     setRegisteringRoomId(roomId)
     try {
-      const { error } = await supabase
-        .from('meet_room_registrations')
-        .delete()
-        .eq('room_id', roomId)
-        .eq('student_id', user.id)
-
-      if (error) throw error
+      await api.delete(`/meet-rooms/${roomId}/register`)
 
       setAlertTitle('Inscripción Cancelada')
       setAlertMessage('Se ha cancelado tu inscripción como oyente a esta sala.')
@@ -227,12 +185,8 @@ export default function DashboardStudent({ user, profile, activeSubTab, setActiv
       setAlertOpen(true)
 
       // Actualizar inscripciones
-      const { data: regsData, error: regsError } = await supabase
-        .from('meet_room_registrations')
-        .select('*')
-        .eq('student_id', user.id)
-      if (regsError) throw regsError
-      setRegistrations(regsData || [])
+      const regsRes = await api.get('/meet-rooms/registrations')
+      setRegistrations(regsRes.data || [])
 
     } catch (err) {
       console.error('Error unregistering from room:', err)
@@ -272,23 +226,7 @@ export default function DashboardStudent({ user, profile, activeSubTab, setActiv
     }
 
     try {
-      let error
-      if (caseData) {
-        // Update
-        const { error: err } = await supabase
-          .from('tactical_cases')
-          .update(payload)
-          .eq('id', caseData.id)
-        error = err
-      } else {
-        // Insert
-        const { error: err } = await supabase
-          .from('tactical_cases')
-          .insert(payload)
-        error = err
-      }
-
-      if (error) throw error
+      await api.post('/tactical-cases', payload)
       
       setAlertTitle(submitStatus === 'submitted' ? 'Ficha Enviada' : 'Ficha Guardada')
       setAlertMessage(submitStatus === 'submitted' ? 'Tu ficha táctica ha sido enviada con éxito para la revisión de los docentes.' : 'Tus cambios han sido guardados como borrador.')

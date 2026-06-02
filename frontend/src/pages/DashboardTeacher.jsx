@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { supabase } from '../supabaseClient'
+import api from '../api'
 import TacticalPitch from '../components/TacticalPitch'
 import ModalAlert from '../components/ModalAlert'
 import { Award, FileText, CheckCircle, AlertTriangle, ExternalLink, Calendar, Send, ArrowLeft, RefreshCw } from 'lucide-react'
@@ -42,21 +42,8 @@ export default function DashboardTeacher({ user, profile }) {
   const fetchCases = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('tactical_cases')
-        .select(`
-          *,
-          student:profiles!tactical_cases_student_id_fkey (
-            full_name,
-            email,
-            dni_passport,
-            career
-          )
-        `)
-        .order('updated_at', { ascending: false })
-
-      if (error) throw error
-      setCases(data || [])
+      const response = await api.get('/tactical-cases')
+      setCases(response.data || [])
     } catch (err) {
       console.error('Error fetching cases:', err)
     } finally {
@@ -66,24 +53,13 @@ export default function DashboardTeacher({ user, profile }) {
 
   const fetchRooms = async () => {
     try {
-      // Cargar salas
-      const { data: roomsData, error: roomsError } = await supabase
-        .from('meet_rooms')
-        .select('*, creator:profiles!meet_rooms_created_by_fkey(full_name)')
-        .order('meet_time', { ascending: true })
-      if (roomsError) throw roomsError
+      // Cargar salas activas
+      const roomsRes = await api.get('/meet-rooms')
+      setRooms(roomsRes.data || [])
 
-      // Filtrar salas que ya hayan pasado de su fecha/hora por más de 2 horas
-      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000)
-      const activeRooms = (roomsData || []).filter(room => new Date(room.meet_time) >= twoHoursAgo)
-      setRooms(activeRooms)
-
-      // Cargar inscripciones de alumnos oyentes
-      const { data: regsData, error: regsError } = await supabase
-        .from('meet_room_registrations')
-        .select('*')
-      if (regsError) throw regsError
-      setRegistrations(regsData || [])
+      // Cargar inscripciones (Nota: El backend deberá estar actualizado para retornar todas si es docente)
+      const regsRes = await api.get('/meet-rooms/registrations')
+      setRegistrations(regsRes.data || [])
     } catch (err) {
       console.error('Error fetching rooms/registrations:', err)
     }
@@ -159,12 +135,7 @@ export default function DashboardTeacher({ user, profile }) {
     }
 
     try {
-      const { error } = await supabase
-        .from('tactical_cases')
-        .update(updates)
-        .eq('id', selectedCase.id)
-
-      if (error) throw error
+      await api.put(`/tactical-cases/${selectedCase.id}/evaluate`, updates)
       
       setAlertTitle('Revisión Guardada')
       setAlertMessage('La devolución técnica ha sido guardada y notificada al alumno con éxito.')
@@ -189,17 +160,12 @@ export default function DashboardTeacher({ user, profile }) {
     if (e) e.preventDefault()
     setCreatingRoom(true)
     try {
-      const { error } = await supabase
-        .from('meet_rooms')
-        .insert({
-          name: roomName,
-          meet_link: roomLink,
-          meet_time: new Date(roomTime).toISOString(),
-          description: roomDescription,
-          created_by: profile?.id || user?.id
-        })
-      
-      if (error) throw error
+      await api.post('/meet-rooms', {
+        name: roomName,
+        meet_link: roomLink,
+        meet_time: new Date(roomTime).toISOString(),
+        description: roomDescription
+      })
 
       setAlertTitle('Sala Creada')
       setAlertMessage(`La sala de Meet "${roomName}" se ha creado con éxito. Ahora los alumnos pueden inscribirse.`);
@@ -226,11 +192,7 @@ export default function DashboardTeacher({ user, profile }) {
   const handleDeleteRoom = async (roomId) => {
     if (!confirm('¿Estás seguro de eliminar esta sala? Se cancelarán todas las inscripciones asociadas.')) return
     try {
-      const { error } = await supabase
-        .from('meet_rooms')
-        .delete()
-        .eq('id', roomId)
-      if (error) throw error
+      await api.delete(`/meet-rooms/${roomId}`)
       fetchRooms()
     } catch (err) {
       console.error(err)
