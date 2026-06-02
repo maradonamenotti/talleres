@@ -4,7 +4,7 @@ import DashboardStudent from './pages/DashboardStudent'
 import DashboardTeacher from './pages/DashboardTeacher'
 import DashboardAdmin from './pages/DashboardAdmin'
 import DashboardStats from './pages/DashboardStats'
-import { Layout, LogOut, Shield, FileText, Users, Eye, Sparkles, BarChart3 } from 'lucide-react'
+import { Layout, LogOut, Shield, FileText, Users, Eye, EyeOff, Sparkles, BarChart3 } from 'lucide-react'
 
 export default function App() {
   const [sessionToken, setSessionToken] = useState(localStorage.getItem('token') || null)
@@ -24,6 +24,7 @@ export default function App() {
   const [isSignUp, setIsSignUp] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('Maradona2026')
+  const [showPassword, setShowPassword] = useState(false)
   const [fullName, setFullName] = useState('')
   const [dniPassport, setDniPassport] = useState('')
   const [career, setCareer] = useState('')
@@ -305,14 +306,37 @@ export default function App() {
 
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Contraseña</label>
-              <input
-                type="password"
-                required
-                className="form-input"
-                placeholder="******"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  className="form-input"
+                  style={{ paddingRight: '2.5rem' }}
+                  placeholder="******"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '0.75rem',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: 'rgba(255, 255, 255, 0.5)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0'
+                  }}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem' }} disabled={authLoading}>
