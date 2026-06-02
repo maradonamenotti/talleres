@@ -3,6 +3,7 @@ import * as bcrypt from "bcrypt";
 import * as jwt from "jsonwebtoken";
 import * as dotenv from "dotenv";
 import { UsersService } from "../users/users.service";
+import { User } from "../users/user.entity";
 import { AppDataSource } from "../../data-source";
 import { AuthorizedCourse } from "./authorized-course.entity";
 
