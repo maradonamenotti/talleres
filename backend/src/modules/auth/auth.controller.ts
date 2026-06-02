@@ -48,6 +48,30 @@ export const handleSSO = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+export const login = async (req: Request, res: Response): Promise<void> => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    res.status(400).json({ error: 'Email y contraseña requeridos.' });
+    return;
+  }
+
+  try {
+    const { token, user } = await authService.processLocalLogin(email, password);
+    res.json({ success: true, token, user });
+  } catch (error: any) {
+    console.error('Error en login:', error);
+    if (error.message === "Usuario baneado.") {
+       res.status(403).json({ error: "Tu cuenta ha sido suspendida." });
+       return;
+    }
+    if (error.message === "Credenciales inválidas.") {
+       res.status(401).json({ error: "Credenciales inválidas." });
+       return;
+    }
+    res.status(500).json({ error: 'Error al iniciar sesión.' });
+  }
+};
+
 export const getCourses = async (req: Request, res: Response): Promise<void> => {
   try {
     const courses = await authService.getCourses();

@@ -11,6 +11,9 @@ export class User {
   @Column({ type: "varchar", nullable: true })
   full_name: string;
 
+  @Column({ type: "varchar", nullable: true, select: false })
+  password?: string;
+
   @Column({ type: "varchar", default: "student" })
   role: string; // 'student', 'teacher', 'admin'
 

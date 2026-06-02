@@ -7,7 +7,7 @@ import { AppDataSource } from "./data-source";
 import { authenticateJWT, requireRole } from "./modules/auth/jwt.middleware";
 
 // Controllers
-import { handleSSO, getCourses, addCourse, deleteCourse } from "./modules/auth/auth.controller";
+import { handleSSO, login, getCourses, addCourse, deleteCourse } from "./modules/auth/auth.controller";
 import { getProfile, getAllUsers, updateRole, banUser, deleteUser } from "./modules/users/users.controller";
 import { getMyCase, getAllCases, saveCase, evaluateCase } from "./modules/tactical-cases/tactical-cases.controller";
 import { getActiveRooms, createRoom, getMyRegistrations, registerRoom, unregisterRoom, deleteRoom } from "./modules/meet-rooms/meet-rooms.controller";
@@ -25,6 +25,7 @@ app.use(express.json());
 
 // Auth Routes
 app.post("/api/auth/sso", handleSSO);
+app.post("/api/auth/login", login);
 app.get("/api/auth/courses", authenticateJWT, requireRole(["admin"]), getCourses);
 app.post("/api/auth/courses", authenticateJWT, requireRole(["admin"]), addCourse);
 app.delete("/api/auth/courses/:id", authenticateJWT, requireRole(["admin"]), deleteCourse);

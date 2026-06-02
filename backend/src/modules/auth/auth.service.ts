@@ -1,4 +1,5 @@
 import * as crypto from "crypto";
+import * as bcrypt from "bcrypt";
 import * as jwt from "jsonwebtoken";
 import * as dotenv from "dotenv";
 import { UsersService } from "../users/users.service";
@@ -51,6 +52,39 @@ export class AuthService {
       jwtSecret,
       { expiresIn: '24h' }
     );
+
+    return { token, user };
+  }
+
+  async processLocalLogin(email: string, pass: string): Promise<{ token: string, user: any }> {
+    const userRepository = AppDataSource.getRepository(User);
+    const user = await userRepository.findOne({ 
+      where: { email },
+      select: ["id", "email", "role", "banned", "full_name", "password"]
+    });
+
+    if (!user || !user.password) {
+      throw new Error("Credenciales inválidas.");
+    }
+
+    const isMatch = await bcrypt.compare(pass, user.password);
+    if (!isMatch) {
+      throw new Error("Credenciales inválidas.");
+    }
+
+    if (user.banned) {
+      throw new Error("Usuario baneado.");
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      jwtSecret,
+      { expiresIn: '24h' }
+    );
+
+    // Remove password before returning
+    delete user.password;
 
     return { token, user };
   }

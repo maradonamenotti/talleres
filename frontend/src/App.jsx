@@ -131,8 +131,25 @@ export default function App() {
 
   const handleAuth = async (e) => {
     e.preventDefault()
-    setAuthError('Para esta versión, por favor ingresa mediante el campus de Moodle.')
-    // TODO: Implementar POST /api/auth/login si se requiere login manual sin Moodle
+    setAuthLoading(true)
+    setAuthError('')
+    try {
+      const response = await api.post('/auth/login', { email, password })
+      const { token, user } = response.data
+      if (token) {
+        localStorage.setItem('token', token)
+        setSessionToken(token)
+        setProfile(user)
+        
+        if (user.role === 'admin') setActiveTab('admin')
+        else if (user.role === 'teacher') setActiveTab('teacher')
+        else setActiveTab('student')
+      }
+    } catch (err) {
+      setAuthError(err.response?.data?.error || 'Error al iniciar sesión.')
+    } finally {
+      setAuthLoading(false)
+    }
   }
 
   const handleLogout = () => {
