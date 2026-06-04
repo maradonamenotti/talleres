@@ -8,7 +8,7 @@ import { authenticateJWT, requireRole } from "./modules/auth/jwt.middleware";
 
 // Controllers
 import { handleSSO, login, getCourses, addCourse, deleteCourse } from "./modules/auth/auth.controller";
-import { getProfile, getAllUsers, updateRole, banUser, deleteUser, adminCreateUser } from "./modules/users/users.controller";
+import { getProfile, getAllUsers, updateRole, banUser, deleteUser, adminCreateUser, adminUpdateUser } from "./modules/users/users.controller";
 import { getMyCase, getAllCases, saveCase, evaluateCase } from "./modules/tactical-cases/tactical-cases.controller";
 import { getActiveRooms, createRoom, getMyRegistrations, registerRoom, unregisterRoom, deleteRoom } from "./modules/meet-rooms/meet-rooms.controller";
 import { getAccessLogs, getMoodleStatus } from "./modules/stats/stats.controller";
@@ -36,6 +36,7 @@ app.get("/api/users/profile", authenticateJWT, getProfile);
 app.get("/api/users", authenticateJWT, requireRole(["admin"]), getAllUsers);
 app.put("/api/users/:id/role", authenticateJWT, requireRole(["admin"]), updateRole);
 app.put("/api/users/:id/ban", authenticateJWT, requireRole(["admin"]), banUser);
+app.put("/api/users/:id", authenticateJWT, requireRole(["admin"]), adminUpdateUser);
 app.delete("/api/users/:id", authenticateJWT, requireRole(["admin"]), deleteUser);
 
 // Tactical Cases Routes

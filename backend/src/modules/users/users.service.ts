@@ -40,4 +40,9 @@ export class UsersService {
   async deleteUser(id: string): Promise<void> {
     await this.userRepository.delete(id);
   }
+
+  async updateUserData(id: string, data: Partial<User>): Promise<User | null> {
+    await this.userRepository.update(id, data);
+    return this.findById(id);
+  }
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import api from '../api'
-import { Users, Shield, ArrowLeft, RefreshCw, AlertCircle, Mail, Key, Check, Trash2, Ban, ShieldAlert, Unlock } from 'lucide-react'
+import { Users, Shield, ArrowLeft, RefreshCw, AlertCircle, Mail, Key, Check, Trash2, Ban, ShieldAlert, Unlock, Edit2 } from 'lucide-react'
 import ModalAlert from '../components/ModalAlert'
 
 export default function DashboardAdmin({ user, onBackToDashboard }) {
@@ -19,6 +19,10 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
     career: ''
   })
   const [creatingUser, setCreatingUser] = useState(false)
+
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editUserData, setEditUserData] = useState(null)
+  const [savingEdit, setSavingEdit] = useState(false)
 
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -129,6 +133,44 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
       setAlertOpen(true)
     } finally {
       setCreatingUser(false)
+    }
+  }
+
+  const openEditModal = (u) => {
+    setEditUserData({
+      id: u.id,
+      full_name: u.full_name || '',
+      email: u.email || '',
+      dni: u.dni || '',
+      career: u.career || ''
+    })
+    setShowEditModal(true)
+  }
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault()
+    setSavingEdit(true)
+    try {
+      const { id, ...data } = editUserData
+      const res = await api.put(`/users/${id}`, data)
+      
+      setUsersList(prev => prev.map(u => u.id === id ? { ...u, ...res.data } : u))
+      
+      setAlertTitle('Usuario Actualizado')
+      setAlertMessage('Los datos del usuario se han actualizado correctamente.')
+      setAlertType('success')
+      setAlertOpen(true)
+      
+      setShowEditModal(false)
+      setEditUserData(null)
+    } catch (err) {
+      console.error(err)
+      setAlertTitle('Error al Actualizar')
+      setAlertMessage(err.response?.data?.error || err.message || 'No se pudo actualizar el usuario.')
+      setAlertType('error')
+      setAlertOpen(true)
+    } finally {
+      setSavingEdit(false)
     }
   }
 
@@ -427,6 +469,14 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
                             <Key size={12} /> Resetear clave
                           </button>
                           
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ padding: '4px 8px', fontSize: '0.75rem', color: 'var(--color-accent)', border: '1px solid var(--color-border)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(59, 130, 246, 0.05)' }}
+                            title="Editar datos del usuario"
+                            onClick={() => openEditModal(u)}
+                          >
+                            <Edit2 size={12} /> Editar
+                          </button>
                           {u.id !== user.id ? (
                             <>
                               <button 
@@ -660,6 +710,41 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
               <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
                 <button type="button" className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setShowCreateModal(false)}>Cancelar</button>
                 <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} disabled={creatingUser}>{creatingUser ? 'Guardando...' : 'Crear Cuenta'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar Usuario */}
+      {showEditModal && editUserData && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="card" style={{ width: '400px', padding: '1.5rem', backgroundColor: 'var(--bg-main)', border: '1px solid var(--color-border)' }}>
+            <h3 style={{ fontFamily: 'var(--font-title)', marginBottom: '1.5rem', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Edit2 size={18} /> Editar Usuario
+            </h3>
+            <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontSize: '0.8rem' }}>Nombre Completo</label>
+                <input type="text" className="form-input" required value={editUserData.full_name} onChange={e => setEditUserData({...editUserData, full_name: e.target.value})} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontSize: '0.8rem' }}>Correo Electrónico</label>
+                <input type="email" className="form-input" required value={editUserData.email} onChange={e => setEditUserData({...editUserData, email: e.target.value})} />
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                  <label className="form-label" style={{ fontSize: '0.8rem' }}>DNI</label>
+                  <input type="text" className="form-input" value={editUserData.dni} onChange={e => setEditUserData({...editUserData, dni: e.target.value})} />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                  <label className="form-label" style={{ fontSize: '0.8rem' }}>Carrera</label>
+                  <input type="text" className="form-input" value={editUserData.career} onChange={e => setEditUserData({...editUserData, career: e.target.value})} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+                <button type="button" className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => { setShowEditModal(false); setEditUserData(null) }}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} disabled={savingEdit}>{savingEdit ? 'Guardando...' : 'Guardar Cambios'}</button>
               </div>
             </form>
           </div>

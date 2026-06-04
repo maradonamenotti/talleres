@@ -107,3 +107,42 @@ export const adminCreateUser = async (req: AuthRequest, res: Response): Promise<
     res.status(500).json({ error: "Error al crear el usuario" });
   }
 };
+
+export const adminUpdateUser = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { email, full_name, dni, career } = req.body;
+
+    // Build update object with only provided fields
+    const updateData: any = {};
+    if (email !== undefined) updateData.email = email;
+    if (full_name !== undefined) updateData.full_name = full_name;
+    if (dni !== undefined) updateData.dni = dni;
+    if (career !== undefined) updateData.career = career;
+
+    if (Object.keys(updateData).length === 0) {
+      res.status(400).json({ error: "No se proporcionaron datos para actualizar." });
+      return;
+    }
+
+    // If email is being changed, check it's not already taken
+    if (updateData.email) {
+      const existingUser = await usersService.findByEmail(updateData.email);
+      if (existingUser && existingUser.id !== id) {
+        res.status(400).json({ error: "El correo electrónico ya está en uso por otro usuario." });
+        return;
+      }
+    }
+
+    const updatedUser = await usersService.updateUserData(id, updateData);
+    if (!updatedUser) {
+      res.status(404).json({ error: "Usuario no encontrado." });
+      return;
+    }
+
+    res.json(updatedUser);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error al actualizar el usuario" });
+  }
+};
