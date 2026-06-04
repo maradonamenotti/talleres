@@ -9,6 +9,14 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
   const [error, setError] = useState('')
   const [updatingUserId, setUpdatingUserId] = useState(null)
 
+  const [searchTerm, setSearchTerm] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const rowsPerPage = 30
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm])
+
   // Sub-tabs de administración
   const [adminTab, setAdminTab] = useState('users') // 'users' | 'courses'
 
@@ -202,6 +210,16 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
     }
   }
 
+  const filteredUsers = usersList.filter(u => {
+    const term = searchTerm.toLowerCase()
+    const nameMatch = u.full_name && u.full_name.toLowerCase().includes(term)
+    const emailMatch = u.email && u.email.toLowerCase().includes(term)
+    return nameMatch || emailMatch
+  })
+
+  const totalPages = Math.ceil(filteredUsers.length / rowsPerPage)
+  const paginatedUsers = filteredUsers.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
+
   return (
     <div className="main-content" style={{ maxWidth: '1200px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -249,16 +267,27 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
 
       {adminTab === 'users' && (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Users size={18} style={{ color: 'var(--color-primary-hover)' }} />
-            <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.1rem' }}>Usuarios de la Plataforma</h3>
+          <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Users size={18} style={{ color: 'var(--color-primary-hover)' }} />
+              <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.1rem', margin: 0 }}>Usuarios de la Plataforma</h3>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-input, rgba(0,0,0,0.05))', border: '1px solid var(--color-border)', borderRadius: '6px', padding: '0.25rem 0.5rem' }}>
+              <input 
+                type="text" 
+                placeholder="Buscar por nombre, apellido o correo..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ background: 'transparent', border: 'none', outline: 'none', color: 'var(--color-text-main)', fontSize: '0.85rem', width: '250px' }}
+              />
+            </div>
           </div>
           
           {loading ? (
             <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
               Cargando usuarios...
             </div>
-          ) : usersList.length === 0 ? (
+          ) : filteredUsers.length === 0 ? (
             <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
               No se encontraron usuarios registrados.
             </div>
@@ -277,7 +306,7 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {usersList.map((u) => (
+                  {paginatedUsers.map((u) => (
                     <tr key={u.id} style={{ background: u.banned ? 'rgba(239, 68, 68, 0.03)' : 'inherit' }}>
                       <td style={{ fontWeight: '500', color: u.banned ? 'var(--color-error)' : 'var(--color-text-main)' }}>
                         <div>{u.full_name || 'Sin Nombre'}</div>
@@ -410,6 +439,41 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
                   ))}
                 </tbody>
               </table>
+              
+              {totalPages > 1 && (
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  padding: '1rem 1.5rem',
+                  borderTop: '1px solid var(--color-border)'
+                }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+                    Mostrando {(currentPage - 1) * rowsPerPage + 1} a {Math.min(currentPage * rowsPerPage, filteredUsers.length)} de {filteredUsers.length} usuarios
+                  </span>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <button 
+                      className="btn btn-secondary" 
+                      style={{ padding: '0.2rem 0.5rem' }}
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    >
+                      &laquo; Anterior
+                    </button>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 500, padding: '0 0.5rem' }}>
+                      Página {currentPage} de {totalPages}
+                    </span>
+                    <button 
+                      className="btn btn-secondary" 
+                      style={{ padding: '0.2rem 0.5rem' }}
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    >
+                      Siguiente &raquo;
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
