@@ -9,6 +9,17 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
   const [error, setError] = useState('')
   const [updatingUserId, setUpdatingUserId] = useState(null)
 
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [newUserFormData, setNewUserFormData] = useState({
+    full_name: '',
+    email: '',
+    password: '',
+    role: 'student',
+    dni: '',
+    career: ''
+  })
+  const [creatingUser, setCreatingUser] = useState(false)
+
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const rowsPerPage = 30
@@ -85,6 +96,39 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
       setAlertOpen(true)
     } finally {
       setUpdatingUserId(null)
+    }
+  }
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault()
+    setCreatingUser(true)
+    try {
+      await api.post('/users', newUserFormData)
+      
+      setAlertTitle('Usuario Creado')
+      setAlertMessage('El usuario ha sido creado correctamente.')
+      setAlertType('success')
+      setAlertOpen(true)
+      
+      setShowCreateModal(false)
+      setNewUserFormData({
+        full_name: '',
+        email: '',
+        password: '',
+        role: 'student',
+        dni: '',
+        career: ''
+      })
+      
+      fetchUsers()
+    } catch (err) {
+      console.error(err)
+      setAlertTitle('Error al Crear')
+      setAlertMessage(err.response?.data?.error || err.message || 'No se pudo crear el usuario.')
+      setAlertType('error')
+      setAlertOpen(true)
+    } finally {
+      setCreatingUser(false)
     }
   }
 
@@ -272,14 +316,23 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
               <Users size={18} style={{ color: 'var(--color-primary-hover)' }} />
               <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.1rem', margin: 0 }}>Usuarios de la Plataforma</h3>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-input, rgba(0,0,0,0.05))', border: '1px solid var(--color-border)', borderRadius: '6px', padding: '0.25rem 0.5rem' }}>
-              <input 
-                type="text" 
-                placeholder="Buscar por nombre, apellido o correo..." 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ background: 'transparent', border: 'none', outline: 'none', color: 'var(--color-text-main)', fontSize: '0.85rem', width: '250px' }}
-              />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-input, rgba(0,0,0,0.05))', border: '1px solid var(--color-border)', borderRadius: '6px', padding: '0.25rem 0.5rem' }}>
+                <input 
+                  type="text" 
+                  placeholder="Buscar por nombre, apellido o correo..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{ background: 'transparent', border: 'none', outline: 'none', color: 'var(--color-text-main)', fontSize: '0.85rem', width: '250px' }}
+                />
+              </div>
+              <button 
+                className="btn btn-primary" 
+                style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                onClick={() => setShowCreateModal(true)}
+              >
+                ➕ Nuevo Usuario
+              </button>
             </div>
           </div>
           
@@ -562,6 +615,53 @@ export default function DashboardAdmin({ user, onBackToDashboard }) {
                 </table>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal Nuevo Usuario */}
+      {showCreateModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="card" style={{ width: '400px', padding: '1.5rem', backgroundColor: 'var(--bg-main)', border: '1px solid var(--color-border)' }}>
+            <h3 style={{ fontFamily: 'var(--font-title)', marginBottom: '1.5rem', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>➕ Crear Nuevo Usuario</span>
+            </h3>
+            <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontSize: '0.8rem' }}>Nombre Completo</label>
+                <input type="text" className="form-input" required placeholder="Ej: Juan Pérez" value={newUserFormData.full_name} onChange={e => setNewUserFormData({...newUserFormData, full_name: e.target.value})} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontSize: '0.8rem' }}>Correo Electrónico</label>
+                <input type="email" className="form-input" required placeholder="Ej: correo@ejemplo.com" value={newUserFormData.email} onChange={e => setNewUserFormData({...newUserFormData, email: e.target.value})} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontSize: '0.8rem' }}>Contraseña Temporal</label>
+                <input type="password" className="form-input" required placeholder="Mínimo 6 caracteres" value={newUserFormData.password} onChange={e => setNewUserFormData({...newUserFormData, password: e.target.value})} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontSize: '0.8rem' }}>Rol de la Cuenta</label>
+                <select className="form-input" value={newUserFormData.role} onChange={e => setNewUserFormData({...newUserFormData, role: e.target.value})}>
+                  <option value="student">Alumno</option>
+                  <option value="teacher">Docente</option>
+                  <option value="admin">Administrador</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                  <label className="form-label" style={{ fontSize: '0.8rem' }}>DNI (Opcional)</label>
+                  <input type="text" className="form-input" placeholder="Ej: 12345678" value={newUserFormData.dni} onChange={e => setNewUserFormData({...newUserFormData, dni: e.target.value})} />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                  <label className="form-label" style={{ fontSize: '0.8rem' }}>Carrera (Opcional)</label>
+                  <input type="text" className="form-input" placeholder="Ej: DT" value={newUserFormData.career} onChange={e => setNewUserFormData({...newUserFormData, career: e.target.value})} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+                <button type="button" className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setShowCreateModal(false)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} disabled={creatingUser}>{creatingUser ? 'Guardando...' : 'Crear Cuenta'}</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

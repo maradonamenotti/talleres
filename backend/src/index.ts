@@ -8,10 +8,10 @@ import { authenticateJWT, requireRole } from "./modules/auth/jwt.middleware";
 
 // Controllers
 import { handleSSO, login, getCourses, addCourse, deleteCourse } from "./modules/auth/auth.controller";
-import { getProfile, getAllUsers, updateRole, banUser, deleteUser } from "./modules/users/users.controller";
+import { getProfile, getAllUsers, updateRole, banUser, deleteUser, adminCreateUser } from "./modules/users/users.controller";
 import { getMyCase, getAllCases, saveCase, evaluateCase } from "./modules/tactical-cases/tactical-cases.controller";
 import { getActiveRooms, createRoom, getMyRegistrations, registerRoom, unregisterRoom, deleteRoom } from "./modules/meet-rooms/meet-rooms.controller";
-import { getAccessLogs } from "./modules/stats/stats.controller";
+import { getAccessLogs, getMoodleStatus } from "./modules/stats/stats.controller";
 
 dotenv.config();
 
@@ -31,6 +31,7 @@ app.post("/api/auth/courses", authenticateJWT, requireRole(["admin"]), addCourse
 app.delete("/api/auth/courses/:id", authenticateJWT, requireRole(["admin"]), deleteCourse);
 
 // Users Routes
+app.post("/api/users", authenticateJWT, requireRole(["admin"]), adminCreateUser);
 app.get("/api/users/profile", authenticateJWT, getProfile);
 app.get("/api/users", authenticateJWT, requireRole(["admin"]), getAllUsers);
 app.put("/api/users/:id/role", authenticateJWT, requireRole(["admin"]), updateRole);
@@ -53,6 +54,7 @@ app.delete("/api/meet-rooms/:id/register", authenticateJWT, unregisterRoom);
 
 // Stats Routes
 app.get("/api/stats/access-logs", authenticateJWT, requireRole(["admin"]), getAccessLogs);
+app.get("/api/stats/moodle-status", authenticateJWT, getMoodleStatus);
 
 // Health check
 app.get("/", (req, res) => {
