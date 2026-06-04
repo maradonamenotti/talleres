@@ -4,7 +4,7 @@ import DashboardStudent from './pages/DashboardStudent'
 import DashboardTeacher from './pages/DashboardTeacher'
 import DashboardAdmin from './pages/DashboardAdmin'
 import DashboardStats from './pages/DashboardStats'
-import { Layout, LogOut, Shield, FileText, Users, Eye, EyeOff, Sparkles, BarChart3 } from 'lucide-react'
+import { Layout, LogOut, Shield, FileText, Users, Eye, EyeOff, Sparkles, BarChart3, RefreshCw } from 'lucide-react'
 
 export default function App() {
   const [sessionToken, setSessionToken] = useState(localStorage.getItem('token') || null)
@@ -19,6 +19,147 @@ export default function App() {
   const [ssoLoading, setSsoLoading] = useState(false)
   const [ssoError, setSsoError] = useState('')
   const ssoStarted = useRef(false)
+
+  // Moodle Connection State
+  const [lastMoodleSync, setLastMoodleSync] = useState(null)
+  const [loadingSync, setLoadingSync] = useState(false)
+
+  const fetchMoodleStatus = async () => {
+    if (!sessionToken) return
+    setLoadingSync(true)
+    try {
+      const response = await api.get('/stats/moodle-status')
+      setLastMoodleSync(response.data.last_access)
+    } catch (err) {
+      console.error('Error al obtener estado de Moodle:', err)
+    } finally {
+      setLoadingSync(false)
+    }
+  }
+
+  useEffect(() => {
+    if (sessionToken) {
+      fetchMoodleStatus()
+      const interval = setInterval(fetchMoodleStatus, 180000) // 3 minutos
+      return () => clearInterval(interval)
+    }
+  }, [sessionToken])
+
+  const getMoodleStatusDetails = () => {
+    if (!lastMoodleSync) {
+      return {
+        color: '#ef4444', // Rojo
+        shadow: '0 0 10px rgba(239, 68, 68, 0.4)',
+        text: 'Desconectado',
+        timeText: 'Sin registros de accesos'
+      }
+    }
+
+    const lastSyncDate = new Date(lastMoodleSync)
+    const now = new Date()
+    const elapsedMs = now.getTime() - lastSyncDate.getTime()
+    const elapsedHours = elapsedMs / (1000 * 60 * 60)
+
+    const day = String(lastSyncDate.getDate()).padStart(2, '0')
+    const month = String(lastSyncDate.getMonth() + 1).padStart(2, '0')
+    const year = lastSyncDate.getFullYear()
+    const hours = String(lastSyncDate.getHours()).padStart(2, '0')
+    const minutes = String(lastSyncDate.getMinutes()).padStart(2, '0')
+    const formattedDate = `${day}/${month}/${year} ${hours}:${minutes}`
+
+    if (elapsedHours <= 2) {
+      return {
+        color: '#10b981', // Verde
+        shadow: '0 0 10px rgba(16, 185, 129, 0.4)',
+        text: 'Moodle Activo',
+        timeText: `Sincronizado: ${formattedDate}`
+      }
+    } else if (elapsedHours <= 5) {
+      return {
+        color: '#f59e0b', // Naranja
+        shadow: '0 0 10px rgba(245, 158, 11, 0.4)',
+        text: 'Moodle Demorado',
+        timeText: `Último acceso: ${formattedDate}`
+      }
+    } else {
+      return {
+        color: '#ef4444', // Rojo
+        shadow: '0 0 10px rgba(239, 68, 68, 0.4)',
+        text: 'Moodle Inactivo',
+        timeText: `Último acceso: ${formattedDate}`
+      }
+    }
+  }
+
+  const MoodleStatusBadge = () => {
+    const details = getMoodleStatusDetails()
+    return (
+      <div style={{
+        position: 'fixed',
+        top: '1.25rem',
+        right: '2.5rem',
+        zIndex: 1000,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        gap: '0.25rem',
+        pointerEvents: 'auto'
+      }}>
+        <button 
+          onClick={fetchMoodleStatus}
+          disabled={loadingSync}
+          style={{
+            background: 'rgba(19, 26, 46, 0.7)',
+            backdropFilter: 'blur(12px)',
+            border: `1px solid ${details.color}80`,
+            borderRadius: 'var(--radius-md)',
+            padding: '0.4rem 0.85rem',
+            color: 'var(--color-text-main)',
+            fontFamily: 'var(--font-title)',
+            fontWeight: '600',
+            fontSize: '0.85rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            cursor: 'pointer',
+            boxShadow: `0 4px 12px rgba(0, 0, 0, 0.3), ${details.shadow}`,
+            transition: 'var(--transition-normal)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-1px)';
+            e.currentTarget.style.borderColor = details.color;
+            e.currentTarget.style.background = 'rgba(26, 35, 61, 0.85)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'none';
+            e.currentTarget.style.borderColor = `${details.color}80`;
+            e.currentTarget.style.background = 'rgba(19, 26, 46, 0.7)';
+          }}
+        >
+          <span style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: details.color,
+            boxShadow: `0 0 8px ${details.color}`,
+            display: 'inline-block'
+          }}></span>
+          Moodle
+          {loadingSync && <RefreshCw className="animate-spin" size={12} style={{ marginLeft: '4px', color: 'var(--color-text-muted)' }} />}
+        </button>
+        <span style={{
+          fontSize: '0.7rem',
+          color: 'var(--color-text-muted)',
+          fontFamily: 'var(--font-body)',
+          fontWeight: '500',
+          letterSpacing: '0.2px',
+          textShadow: '0 1px 2px rgba(0,0,0,0.5)'
+        }}>
+          {details.timeText}
+        </span>
+      </div>
+    )
+  }
 
   // Auth Form State (Fallback)
   const [isSignUp, setIsSignUp] = useState(false)
@@ -518,7 +659,8 @@ export default function App() {
       </aside>
 
       {/* CONTENIDO PRINCIPAL */}
-      <main style={{ flexGrow: 1, backgroundColor: 'var(--bg-main)', height: '100vh', overflowY: 'auto' }}>
+      <main style={{ flexGrow: 1, backgroundColor: 'var(--bg-main)', height: '100vh', overflowY: 'auto', position: 'relative' }}>
+        {sessionToken && <MoodleStatusBadge />}
         {activeTab === 'student' && (
           <DashboardStudent 
             user={profile} 

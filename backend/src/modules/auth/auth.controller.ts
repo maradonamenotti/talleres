@@ -1,7 +1,9 @@
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
+import { StatsService } from '../stats/stats.service';
 
 const authService = new AuthService();
+const statsService = new StatsService();
 
 export const handleSSO = async (req: Request, res: Response): Promise<void> => {
   const { username, email, firstname, lastname, course_id, hash } = req.body;
@@ -31,6 +33,13 @@ export const handleSSO = async (req: Request, res: Response): Promise<void> => {
     // 3. Procesar Login / Registro y generar JWT
     const { token, user } = await authService.processMoodleLogin(email, firstname, lastname);
 
+    // Registrar el acceso en la tabla entrenador_access_logs
+    try {
+      await statsService.logAccess(user.id, user.email);
+    } catch (logError) {
+      console.error('Error al registrar acceso en SSO Moodle:', logError);
+    }
+
     // Retornamos el token y datos del usuario
     res.json({
       success: true,
@@ -57,6 +66,14 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
   try {
     const { token, user } = await authService.processLocalLogin(email, password);
+
+    // Registrar el acceso en la tabla entrenador_access_logs
+    try {
+      await statsService.logAccess(user.id, user.email);
+    } catch (logError) {
+      console.error('Error al registrar acceso en login local:', logError);
+    }
+
     res.json({ success: true, token, user });
   } catch (error: any) {
     console.error('Error en login:', error);

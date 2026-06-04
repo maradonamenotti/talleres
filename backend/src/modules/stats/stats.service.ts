@@ -17,5 +17,13 @@ export class StatsService {
     });
   }
 
+  async getLastAccessLog(): Promise<AccessLog | null> {
+    const logs = await this.logRepository.find({
+      order: { fecha: "DESC" },
+      take: 1
+    });
+    return logs.length > 0 ? logs[0] : null;
+  }
+
   // Add more statistical queries as needed (e.g. daily, weekly active users)
 }
