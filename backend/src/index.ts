@@ -2,8 +2,6 @@ import express from "express";
 import cors from "cors";
 import * as dotenv from "dotenv";
 import { AppDataSource } from "./data-source";
-import { User } from "./modules/users/user.entity";
-import * as bcrypt from "bcrypt";
 
 // Middleware
 import { authenticateJWT, requireRole } from "./modules/auth/jwt.middleware";
@@ -66,33 +64,8 @@ app.get("/", (req, res) => {
 
 // Initialize DB and start server
 AppDataSource.initialize()
-  .then(async () => {
+  .then(() => {
     console.log("Data Source has been initialized!");
-    
-    // Seed temporal del docente MARIANO LEVISMAN
-    try {
-      const userRepo = AppDataSource.getRepository(User);
-      const email = "mlevisman@gmail.com";
-      const existingUser = await userRepo.findOneBy({ email });
-      if (!existingUser) {
-        const hashedPassword = await bcrypt.hash("Maradona2026", 10);
-        const teacherUser = userRepo.create({
-          email,
-          full_name: "MARIANO LEVISMAN",
-          dni: "39498639",
-          role: "teacher",
-          password: hashedPassword,
-          email_confirmed: true,
-        });
-        await userRepo.save(teacherUser);
-        console.log("✅ Docente MARIANO LEVISMAN creado con éxito en el arranque.");
-      } else {
-        console.log("⚠️ El docente MARIANO LEVISMAN ya existe.");
-      }
-    } catch (err) {
-      console.error("Error al crear el docente en el arranque:", err);
-    }
-
     app.listen(port, () => {
       console.log(`Server is running on port ${port}`);
     });
