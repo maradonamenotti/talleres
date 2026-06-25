@@ -73,6 +73,9 @@ export class TacticalCase {
   @Column({ type: "timestamp", nullable: true })
   meet_time: Date;
 
+  @Column({ type: "varchar", nullable: true })
+  vimeo_recording_url: string;
+
   @CreateDateColumn()
   created_at: Date;
 

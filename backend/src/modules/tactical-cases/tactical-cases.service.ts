@@ -27,8 +27,17 @@ export class TacticalCasesService {
     return this.repository.findOneBy({ id });
   }
 
-  async evaluateCase(id: string, teacherFeedback: string, status: string): Promise<TacticalCase | null> {
-    await this.repository.update(id, { teacher_feedback: teacherFeedback, status });
+  async evaluateCase(id: string, data: Partial<TacticalCase>): Promise<TacticalCase | null> {
+    await this.repository.update(id, data);
     return this.repository.findOneBy({ id });
+  }
+
+  async findApproved(): Promise<TacticalCase[]> {
+    return this.repository.createQueryBuilder("case")
+      .leftJoinAndSelect("case.student", "student")
+      .where("case.status = :status", { status: "approved" })
+      .orderBy("case.updated_at", "DESC")
+      .addOrderBy("student.full_name", "ASC")
+      .getMany();
   }
 }

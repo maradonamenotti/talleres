@@ -46,10 +46,39 @@ export const saveCase = async (req: AuthRequest, res: Response): Promise<void> =
 export const evaluateCase = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { teacher_feedback, status } = req.body;
-    const updated = await service.evaluateCase(id, teacher_feedback, status);
+    const { 
+      teacher_feedback, 
+      status, 
+      meet_link, 
+      meet_time, 
+      meet_schedule_status, 
+      student_schedule_comment,
+      vimeo_recording_url 
+    } = req.body;
+
+    const updated = await service.evaluateCase(id, {
+      teacher_feedback,
+      status,
+      meet_link,
+      meet_time: meet_time ? new Date(meet_time) : undefined,
+      meet_schedule_status,
+      student_schedule_comment,
+      vimeo_recording_url
+    });
+    
     res.json(updated);
   } catch (error) {
+    console.error('Error al evaluar la ficha táctica:', error);
     res.status(500).json({ error: "Error al evaluar la ficha táctica." });
+  }
+};
+
+export const getApprovedCases = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const cases = await service.findApproved();
+    res.json(cases);
+  } catch (error) {
+    console.error('Error al obtener casos aprobados:', error);
+    res.status(500).json({ error: "Error al obtener los casos aprobados." });
   }
 };

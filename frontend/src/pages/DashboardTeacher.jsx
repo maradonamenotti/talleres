@@ -35,6 +35,7 @@ export default function DashboardTeacher({ user, profile }) {
   const [feedback, setFeedback] = useState('')
   const [meetLink, setMeetLink] = useState('')
   const [meetTime, setMeetTime] = useState('')
+  const [vimeoRecordingUrl, setVimeoRecordingUrl] = useState('')
   const [reviewStatus, setReviewStatus] = useState('approved') // 'approved' o 'observed'
   const [savingReview, setSavingReview] = useState(false)
   const [filter, setFilter] = useState('all') // 'all', 'submitted', 'observed', 'approved'
@@ -75,6 +76,7 @@ export default function DashboardTeacher({ user, profile }) {
     setFeedback(tCase.teacher_feedback || '')
     setMeetLink(tCase.meet_link || '')
     setAssignedRoomId(tCase.room_id || '')
+    setVimeoRecordingUrl(tCase.vimeo_recording_url || '')
     
     // Formatear fecha para el input datetime-local
     if (tCase.meet_time) {
@@ -116,6 +118,7 @@ export default function DashboardTeacher({ user, profile }) {
       room_id: reviewStatus === 'approved' ? (assignedRoomId || null) : null,
       meet_link: reviewStatus === 'approved' ? meetLink : null,
       meet_time: (reviewStatus === 'approved' && meetTime) ? new Date(meetTime).toISOString() : null,
+      vimeo_recording_url: reviewStatus === 'approved' ? vimeoRecordingUrl : null,
       updated_at: new Date().toISOString()
     }
 
@@ -537,6 +540,15 @@ export default function DashboardTeacher({ user, profile }) {
                         className="form-input" 
                         value={meetTime}
                         onChange={(e) => setMeetTime(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Enlace de Grabación (Vimeo)</label>
+                      <input 
+                        className="form-input" 
+                        placeholder="https://vimeo.com/..." 
+                        value={vimeoRecordingUrl}
+                        onChange={(e) => setVimeoRecordingUrl(e.target.value)}
                       />
                     </div>
                   </>

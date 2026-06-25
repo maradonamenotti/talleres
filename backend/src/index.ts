@@ -9,7 +9,7 @@ import { authenticateJWT, requireRole } from "./modules/auth/jwt.middleware";
 // Controllers
 import { handleSSO, login, getCourses, addCourse, deleteCourse } from "./modules/auth/auth.controller";
 import { getProfile, getAllUsers, updateRole, banUser, deleteUser, adminCreateUser, adminUpdateUser } from "./modules/users/users.controller";
-import { getMyCase, getAllCases, saveCase, evaluateCase } from "./modules/tactical-cases/tactical-cases.controller";
+import { getMyCase, getAllCases, saveCase, evaluateCase, getApprovedCases } from "./modules/tactical-cases/tactical-cases.controller";
 import { getActiveRooms, createRoom, getMyRegistrations, registerRoom, unregisterRoom, deleteRoom } from "./modules/meet-rooms/meet-rooms.controller";
 import { getAccessLogs, getMoodleStatus } from "./modules/stats/stats.controller";
 
@@ -41,6 +41,7 @@ app.delete("/api/users/:id", authenticateJWT, requireRole(["admin"]), deleteUser
 
 // Tactical Cases Routes
 app.get("/api/tactical-cases/my-case", authenticateJWT, getMyCase);
+app.get("/api/tactical-cases/approved", authenticateJWT, getApprovedCases);
 app.get("/api/tactical-cases", authenticateJWT, requireRole(["teacher", "admin"]), getAllCases);
 app.post("/api/tactical-cases", authenticateJWT, saveCase);
 app.put("/api/tactical-cases/:id/evaluate", authenticateJWT, requireRole(["teacher", "admin"]), evaluateCase);

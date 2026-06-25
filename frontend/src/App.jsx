@@ -4,7 +4,8 @@ import DashboardStudent from './pages/DashboardStudent'
 import DashboardTeacher from './pages/DashboardTeacher'
 import DashboardAdmin from './pages/DashboardAdmin'
 import DashboardStats from './pages/DashboardStats'
-import { Layout, LogOut, Shield, FileText, Users, Eye, EyeOff, Sparkles, BarChart3, RefreshCw } from 'lucide-react'
+import DashboardLibrary from './pages/DashboardLibrary'
+import { Layout, LogOut, Shield, FileText, Users, Eye, EyeOff, Sparkles, BarChart3, RefreshCw, BookOpen } from 'lucide-react'
 
 export default function App() {
   const [sessionToken, setSessionToken] = useState(localStorage.getItem('token') || null)
@@ -551,6 +552,13 @@ export default function App() {
             </div>
           )}
 
+          <div 
+            className={`nav-item ${activeTab === 'library' ? 'active' : ''}`}
+            onClick={() => setActiveTab('library')}
+          >
+            <BookOpen size={18} /> Biblioteca
+          </div>
+
           {(profile?.role === 'teacher' || profile?.role === 'admin') && (
             <div 
               className={`nav-item ${activeTab === 'teacher' ? 'active' : ''}`}
@@ -671,6 +679,7 @@ export default function App() {
             setWantsToExpose={setStudentWantsToExpose} 
           />
         )}
+        {activeTab === 'library' && <DashboardLibrary />}
         {activeTab === 'teacher' && <DashboardTeacher user={profile} profile={profile} />}
         {activeTab === 'admin' && <DashboardAdmin user={profile} onBackToDashboard={() => setActiveTab('student')} />}
         {activeTab === 'stats' && <DashboardStats onBackToDashboard={() => setActiveTab('student')} />}
