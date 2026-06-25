@@ -28,12 +28,31 @@ export default function DashboardLibrary() {
     fetchApprovedCases()
   }, [])
 
-  // Extraer ID de Vimeo para el player
-  const getVimeoId = (url) => {
+  // Extraer ID y hash de Vimeo para el player (admite videos privados/no listados)
+  const parseVimeoUrl = (url) => {
     if (!url) return null
-    const regExp = /vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|showcase\/(\d+)\/video\/|video\/|)(\d+)(?:$|\/|\?)/
+    try {
+      const cleanUrl = url.trim()
+      const parsedUrl = new URL(cleanUrl)
+      const pathParts = parsedUrl.pathname.split('/').filter(part => part.length > 0)
+      
+      if (parsedUrl.hostname.includes('vimeo.com')) {
+        if (pathParts[0] === 'video' && pathParts.length >= 2) {
+          return { id: pathParts[1], hash: pathParts[2] || null }
+        }
+        if (pathParts.length >= 1 && /^\d+$/.test(pathParts[0])) {
+          return { id: pathParts[0], hash: pathParts[1] || null }
+        }
+      }
+    } catch (e) {
+      // Fallback
+    }
+    const regExp = /vimeo\.com\/(?:video\/|)(\d+)/
     const match = url.match(regExp)
-    return match ? match[4] : null
+    if (match) {
+      return { id: match[1], hash: null }
+    }
+    return null
   }
 
   // Filtrado y ordenamiento de casos
@@ -189,16 +208,23 @@ export default function DashboardLibrary() {
                   <h4 className="card-title" style={{ color: '#34d399', display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid rgba(16, 185, 129, 0.15)', paddingBottom: '0.5rem' }}>
                     <Film size={18} /> Grabación de la Defensa del Caso
                   </h4>
-                  {getVimeoId(selectedCase.vimeo_recording_url) ? (
-                    <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#000', boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)' }}>
-                      <iframe 
-                        src={`https://player.vimeo.com/video/${getVimeoId(selectedCase.vimeo_recording_url)}?h=0&title=0&byline=0&portrait=0`} 
-                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }}
-                        allow="autoplay; fullscreen; picture-in-picture" 
-                        allowFullScreen
-                      ></iframe>
-                    </div>
-                  ) : (
+                  {(() => {
+                    const vimeoData = parseVimeoUrl(selectedCase.vimeo_recording_url);
+                    if (vimeoData) {
+                      const embedUrl = `https://player.vimeo.com/video/${vimeoData.id}?${vimeoData.hash ? `h=${vimeoData.hash}&` : ''}title=0&byline=0&portrait=0`;
+                      return (
+                        <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#000', boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)' }}>
+                          <iframe 
+                            src={embedUrl} 
+                            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }}
+                            allow="autoplay; fullscreen; picture-in-picture" 
+                            allowFullScreen
+                          ></iframe>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })() || (
                     <div>
                       <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.75rem' }}>
                         Enlace de grabación no compatible para reproductor integrado.
