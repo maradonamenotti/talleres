@@ -18,7 +18,7 @@ export const AppDataSource = new DataSource({
     username: process.env.DB_USERNAME || "postgres",
     password: process.env.DB_PASSWORD || "postgres",
     database: process.env.DB_DATABASE || "talleres",
-    ssl: process.env.DB_HOST !== 'localhost' ? { rejectUnauthorized: false } : false,
+    ssl: process.env.DB_SSL === 'true' || (process.env.DB_HOST !== 'localhost' && process.env.DB_HOST !== 'db' && process.env.DB_SSL !== 'false') ? { rejectUnauthorized: false } : false,
     synchronize: true, // Set to false in production
     logging: false,
     entities: [User, TacticalCase, MeetRoom, MeetRoomRegistration, AccessLog, AuthorizedCourse],
